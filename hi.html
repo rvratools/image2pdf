@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image to PDF with Custom Crop</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(45deg, #8B5CF6, #EC4899, #EF4444, #F97316);
+      background-size: 400% 400%;
+      animation: gradientShift 7.5s ease infinite;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #fff;
+      color: #333;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      background: linear-gradient(45deg, #6a11cb, #2575fc);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    input[type="file"] { display: none; }
+    .file-label {
+      display: inline-block;
+      padding: 15px 25px;
+      border-radius: 50px;
+      background: #2575fc;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      margin: 10px 0;
+      transition: all 0.3s ease;
+    }
+    .file-label:hover {
+      background: #1e5bb8;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(37, 117, 252, 0.3);
+    }
+    .drop-zone {
+      border: 3px dashed #2575fc;
+      border-radius: 20px;
+      padding: 40px;
+      margin: 20px 0;
+      background: rgba(37, 117, 252, 0.05);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .drop-zone.dragover {
+      border-color: #6a11cb;
+      background: rgba(106, 17, 203, 0.1);
+      transform: scale(1.02);
+    }
+    .drop-zone p {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #666;
+    }
+    select, button, input[type="text"] {
+      padding: 15px 25px;
+      margin: 10px;
+      border-radius: 50px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+    button { cursor: pointer; }
+    button.convert {
+      background: #6a11cb;
+      color: white;
+      font-weight: bold;
+      border: none;
+      transition: all 0.3s ease;
+    }
+    button.convert:hover {
+      background: #5a0fb3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(106, 17, 203, 0.3);
+    }
+    button.convert:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    button.crop-btn {
+      background: #2575fc;
+      color: white;
+      margin-top: 5px;
+      border: none;
+      transition: all 0.3s ease;
+    }
+    button.crop-btn:hover {
+      background: #1e5bb8;
+      transform: translateY(-1px);
+    }
+    button.remove-btn {
+      background: #e74c3c;
+      color: white;
+      margin-top: 5px;
+      border: none;
+      transition: all 0.3s ease;
+    }
+    button.remove-btn:hover {
+      background: #c0392b;
+      transform: translateY(-1px);
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    @media(min-width: 600px) {
+      .controls {
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+    }
+    .preview {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    /* Mobile responsive adjustments */
+    @media (max-width: 768px) {
+      .preview {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+      }
+      
+      .thumb {
+        padding: 8px;
+      }
+      
+      .thumb-order {
+        width: 20px;
+        height: 20px;
+        font-size: 0.7rem;
+      }
+      
+      .thumb-drag-handle {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+      }
+      
+      .thumb-controls button {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .preview {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+      }
+      
+      .thumb {
+        padding: 6px;
+      }
+      
+      .thumb-order {
+        width: 18px;
+        height: 18px;
+        font-size: 0.6rem;
+      }
+      
+      .thumb-drag-handle {
+        font-size: 0.5rem;
+        padding: 1px 3px;
+      }
+      
+      .thumb-controls {
+        gap: 3px;
+      }
+      
+      .thumb-controls button {
+        padding: 6px 10px;
+        font-size: 0.7rem;
+      }
+    }
+    .thumb {
+      position: relative;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fafafa;
+      transition: all 0.3s ease;
+      overflow: hidden;
+      cursor: move;
+      user-select: none;
+    }
+    .thumb:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      border-color: #2575fc;
+    }
+    .thumb.dragging {
+      opacity: 0.5;
+      transform: rotate(5deg) scale(1.05);
+      z-index: 1000;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    }
+    
+    /* Mobile dragging - scaled down preview */
+    @media (max-width: 768px) {
+      .thumb.dragging {
+        transform: rotate(5deg) scale(0.8);
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .thumb.dragging {
+        transform: rotate(5deg) scale(0.7);
+      }
+    }
+    .thumb.drag-over {
+      border-color: #6a11cb;
+      background: rgba(106, 17, 203, 0.1);
+      transform: scale(1.02);
+    }
+    .thumb-order {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      border-radius: 50%;
+      width: 25px;
+      height: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: bold;
+      z-index: 10;
+    }
+    .thumb-drag-handle {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.7rem;
+      cursor: grab;
+      z-index: 10;
+    }
+    .thumb-drag-handle:active {
+      cursor: grabbing;
+    }
+    .thumb img {
+      width: 100%;
+      border-radius: 10px;
+      transition: transform 0.3s ease;
+      image-rendering: high-quality;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    .thumb:hover img {
+      transform: scale(1.05);
+    }
+    .thumb-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 5px;
+      font-size: 0.8rem;
+      border-radius: 0 0 8px 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .thumb:hover .thumb-info {
+      opacity: 1;
+    }
+    .thumb-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-top: 10px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #f0f0f0;
+      border-radius: 2px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(45deg, #6a11cb, #2575fc);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 15px;
+      max-width: 95%;
+      max-height: 95%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: modalSlideIn 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    @keyframes modalSlideIn {
+      from { opacity: 0; transform: scale(0.8) translateY(-50px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .modal img {
+      max-width: 100%;
+      max-height: 60vh;
+      border-radius: 10px;
+      flex: 1;
+      object-fit: contain;
+      image-rendering: high-quality;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #333;
+    }
+    .modal-instructions {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .modal-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 15px;
+      flex-shrink: 0;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    .modal-controls button {
+      padding: 10px 20px;
+      border-radius: 25px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .modal-controls .apply-btn {
+      background: #28a745;
+      color: white;
+    }
+    .modal-controls .apply-btn:hover {
+      background: #218838;
+      transform: translateY(-2px);
+    }
+    .modal-controls .cancel-btn {
+      background: #6c757d;
+      color: white;
+    }
+    .modal-controls .cancel-btn:hover {
+      background: #5a6268;
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📸 Image to PDF Converter</h1>
+    
+    <div class="drop-zone" id="dropZone">
+      <p>📁 Drag & drop images here or click to browse</p>
+    </div>
+    
+    <label for="fileInput" class="file-label">📂 Choose Images</label>
+    <input type="file" id="fileInput" accept="image/*" multiple>
+
+    <div class="controls">
+      <select id="formatSelect">
+        <option value="custom" selected>Custom Crop (Recommended)</option>
+        <option value="custom-fit">Custom Crop (Fit to Page)</option>
+        <option value="a4">A4</option>
+        <option value="letter">Letter</option>
+      </select>
+
+      <input type="text" id="fileName" placeholder="Enter PDF name (default: converted.pdf)">
+
+      <button class="convert" onclick="convertToPDF()" id="convertBtn">🚀 Convert to PDF</button>
+    </div>
+
+    <div class="progress-bar" id="progressBar" style="display: none;">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="preview" id="preview"></div>
+    
+    <!-- Page view counter -->
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 0.9rem;">
+      <div id="viewCounter">Page Views: Loading...</div>
+    </div>
+  </div>
+
+  <div class="modal" id="cropModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">✂️ Crop Image</div>
+      </div>
+      <div class="modal-instructions">
+        <strong>Instructions:</strong> Drag the corners to resize, drag the center to move the crop area. The PDF will contain exactly what you select!
+      </div>
+      <div style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center;">
+        <img id="cropImage" src="">
+      </div>
+      <div class="modal-controls">
+        <button class="apply-btn" onclick="applyCrop()">✅ Apply Crop</button>
+        <button class="cancel-btn" onclick="closeModal()">❌ Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    let images = [];
+    let currentCropIndex = null;
+    let cropper;
+
+    // File input handler
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+    });
+
+    // Drag and drop functionality
+    const dropZone = document.getElementById('dropZone');
+    
+    dropZone.addEventListener('click', () => {
+      document.getElementById('fileInput').click();
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    function handleFiles(fileList) {
+      const imageFiles = Array.from(fileList).filter(file => file.type.startsWith('image/'));
+      if (imageFiles.length === 0) {
+        alert('Please select only image files!');
+        return;
+      }
+      
+      images = imageFiles.map(file => ({ file, cropped: null }));
+      renderPreview();
+    }
+
+    function renderPreview() {
+      const preview = document.getElementById('preview');
+      preview.innerHTML = '';
+      
+      if (images.length === 0) {
+        preview.innerHTML = '<p style="text-align: center; color: #666; grid-column: 1/-1;">No images selected yet</p>';
+        return;
+      }
+
+      images.forEach((imgObj, index) => {
+        const div = document.createElement('div');
+        div.className = 'thumb';
+        div.draggable = true;
+        div.dataset.index = index;
+        
+        // Order number indicator
+        const orderIndicator = document.createElement('div');
+        orderIndicator.className = 'thumb-order';
+        orderIndicator.textContent = index + 1;
+        div.appendChild(orderIndicator);
+        
+        // Drag handle
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'thumb-drag-handle';
+        dragHandle.textContent = '⋮⋮';
+        dragHandle.title = 'Drag to reorder';
+        div.appendChild(dragHandle);
+        
+        const img = document.createElement('img');
+        const fileToUse = imgObj.cropped ? imgObj.cropped.data : imgObj.file;
+        img.src = URL.createObjectURL(fileToUse);
+        img.style.imageRendering = 'high-quality';
+        img.style.imageRendering = '-webkit-optimize-contrast';
+        div.appendChild(img);
+
+        // Image info overlay
+        const info = document.createElement('div');
+        info.className = 'thumb-info';
+        const dimensions = imgObj.cropped ? 
+          `${imgObj.cropped.width} × ${imgObj.cropped.height}` : 
+          'Original size';
+        info.textContent = `${imgObj.file.name} (${dimensions})`;
+        div.appendChild(info);
+
+        // Controls
+        const controls = document.createElement('div');
+        controls.className = 'thumb-controls';
+
+        if (document.getElementById('formatSelect').value.startsWith('custom')) {
+          const cropBtn = document.createElement('button');
+          cropBtn.innerText = '✂️ Crop';
+          cropBtn.className = 'crop-btn';
+          cropBtn.onclick = () => openCrop(index);
+          controls.appendChild(cropBtn);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.innerText = '🗑️ Remove';
+        removeBtn.className = 'remove-btn';
+        removeBtn.onclick = () => removeImage(index);
+        controls.appendChild(removeBtn);
+
+        div.appendChild(controls);
+        preview.appendChild(div);
+      });
+      
+      // Add drag and drop event listeners
+      addDragAndDropListeners();
+    }
+
+    function removeImage(index) {
+      images.splice(index, 1);
+      renderPreview();
+    }
+
+    function openCrop(index) {
+      currentCropIndex = index;
+      const imgObj = images[index];
+      const modal = document.getElementById('cropModal');
+      const cropImage = document.getElementById('cropImage');
+      cropImage.src = URL.createObjectURL(imgObj.file);
+      modal.style.display = 'flex';
+      if (cropper) cropper.destroy();
+      cropper = new Cropper(cropImage, { 
+        aspectRatio: NaN, 
+        viewMode: 0,
+        dragMode: 'crop',
+        autoCropArea: 0.8,
+        restore: false,
+        guides: true,
+        center: true,
+        highlight: true,
+        cropBoxMovable: true,
+        cropBoxResizable: true,
+        toggleDragModeOnDblclick: false,
+        background: false,
+        modal: false,
+        scalable: true,
+        zoomable: true,
+        rotatable: false,
+        checkCrossOrigin: false,
+        responsive: true,
+        checkOrientation: false,
+        imageSmoothingEnabled: false,
+        imageSmoothingQuality: 'high',
+        minCanvasWidth: 0,
+        minCanvasHeight: 0,
+        maxCanvasWidth: Infinity,
+        maxCanvasHeight: Infinity
+      });
+    }
+
+    function applyCrop() {
+      if (cropper && currentCropIndex !== null) {
+        // Get the crop data in the original image coordinates
+        const cropData = cropper.getData();
+        
+        // Create canvas with the exact crop dimensions from the original image
+        const canvas = cropper.getCroppedCanvas({
+          width: cropData.width,
+          height: cropData.height,
+          imageSmoothingEnabled: false,
+          imageSmoothingQuality: 'high',
+          fillColor: '#ffffff'
+        });
+        
+        // Use maximum quality PNG with no compression
+        canvas.toBlob(blob => {
+          images[currentCropIndex].cropped = {
+            data: blob,
+            width: Math.round(cropData.width),
+            height: Math.round(cropData.height)
+          };
+          renderPreview();
+          closeModal();
+        }, 'image/png', 1.0); // 1.0 = maximum quality, no compression
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('cropModal').style.display = 'none';
+      if (cropper) cropper.destroy();
+    }
+
+    async function convertToPDF() {
+      if (images.length === 0) {
+        alert('Please select at least one image!');
+        return;
+      }
+
+      const convertBtn = document.getElementById('convertBtn');
+      const progressBar = document.getElementById('progressBar');
+      const progressFill = document.getElementById('progressFill');
+      
+      // Show progress
+      convertBtn.disabled = true;
+      convertBtn.textContent = '⏳ Converting...';
+      progressBar.style.display = 'block';
+      progressFill.style.width = '0%';
+
+      const { jsPDF } = window.jspdf;
+      const format = document.getElementById('formatSelect').value;
+      let pdf = null;
+    
+      try {
+        for (let i = 0; i < images.length; i++) {
+          const imgObj = images[i];
+          
+          // Update progress
+          const progress = ((i + 1) / images.length) * 100;
+          progressFill.style.width = `${progress}%`;
+          
+          // Use the cropped data if it exists, otherwise use the original file
+          const fileToUse = imgObj.cropped ? imgObj.cropped.data : imgObj.file;
+          const imgData = await fileToDataURL(fileToUse);
+    
+        if (format === 'custom') {
+          const img = new Image();
+          img.src = imgData;
+          await new Promise(r => img.onload = r);
+    
+          // Use exact cropped dimensions if available, otherwise use original image's natural dimensions
+          const finalWidth = imgObj.cropped ? imgObj.cropped.width : img.naturalWidth;
+          const finalHeight = imgObj.cropped ? imgObj.cropped.height : img.naturalHeight;
+    
+          if (i === 0) {
+            pdf = new jsPDF({ 
+              unit: 'px', 
+              format: [finalWidth, finalHeight],
+              orientation: finalWidth > finalHeight ? 'landscape' : 'portrait'
+            });
+          } else {
+            pdf.addPage([finalWidth, finalHeight], finalWidth > finalHeight ? 'landscape' : 'portrait');
+          }
+          // Place image at exact dimensions with maximum quality
+          pdf.addImage(imgData, 'PNG', 0, 0, finalWidth, finalHeight, '', 'SLOW');
+    
+        } else if (format === 'custom-fit') {
+          if (i === 0) pdf = new jsPDF();
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          if (i > 0) pdf.addPage();
+          const img = new Image();
+          img.src = imgData;
+          await new Promise(r => img.onload = r);
+          pdf.addImage(img, 'PNG', 0, 0, pageWidth, pageHeight);
+    
+        } else { // a4 or letter
+          if (i === 0) pdf = new jsPDF({ format: format.toUpperCase() });
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const img = new Image();
+          img.src = imgData;
+          await new Promise(r => img.onload = r);
+          const ratio = Math.min(pageWidth / img.width, pageHeight / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          const x = (pageWidth - w) / 2;
+          const y = (pageHeight - h) / 2;
+          if (i > 0) pdf.addPage();
+          pdf.addImage(img, 'PNG', x, y, w, h);
+        }
+      }
+    
+        if (pdf) {
+          let name = document.getElementById('fileName').value.trim();
+          if (!name) name = 'converted.pdf';
+          if (!name.toLowerCase().endsWith('.pdf')) name += '.pdf';
+          pdf.save(name);
+          
+          // Success feedback
+          convertBtn.textContent = '✅ Done!';
+          setTimeout(() => {
+            convertBtn.disabled = false;
+            convertBtn.textContent = '🚀 Convert to PDF';
+            progressBar.style.display = 'none';
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Conversion error:', error);
+        alert('Error converting images to PDF. Please try again.');
+        convertBtn.disabled = false;
+        convertBtn.textContent = '🚀 Convert to PDF';
+        progressBar.style.display = 'none';
+      }
+    }
+    
+    function fileToDataURL(fileOrBlob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        if (fileOrBlob instanceof File || fileOrBlob instanceof Blob) {
+          reader.readAsDataURL(fileOrBlob);
+        } else {
+          reject(new Error("Invalid input: not a File or Blob."));
+        }
+      });
+    }
+
+    // Drag and drop functionality
+    let draggedElement = null;
+    let draggedIndex = null;
+    let dragImage = null;
+
+    function addDragAndDropListeners() {
+      const thumbs = document.querySelectorAll('.thumb');
+      
+      thumbs.forEach(thumb => {
+        // HTML5 Drag and Drop API
+        thumb.addEventListener('dragstart', handleDragStart);
+        thumb.addEventListener('dragend', handleDragEnd);
+        thumb.addEventListener('dragover', handleDragOver);
+        thumb.addEventListener('drop', handleDrop);
+        thumb.addEventListener('dragenter', handleDragEnter);
+        thumb.addEventListener('dragleave', handleDragLeave);
+        
+        // Touch events for mobile
+        thumb.addEventListener('touchstart', handleTouchStart, { passive: false });
+        thumb.addEventListener('touchmove', handleTouchMove, { passive: false });
+        thumb.addEventListener('touchend', handleTouchEnd, { passive: false });
+      });
+    }
+
+    function handleDragStart(e) {
+      draggedElement = e.target;
+      draggedIndex = parseInt(e.target.dataset.index);
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', e.target.outerHTML);
+      
+      // Create a custom drag image that follows the cursor
+      dragImage = e.target.cloneNode(true);
+      dragImage.style.position = 'fixed';
+      dragImage.style.pointerEvents = 'none';
+      dragImage.style.zIndex = '9999';
+      dragImage.style.opacity = '0.5';
+      dragImage.style.transform = 'rotate(5deg)';
+      document.body.appendChild(dragImage);
+      
+      // Track mouse position
+      document.addEventListener('dragover', updateDragImagePosition);
+    }
+
+    function handleDragEnd(e) {
+      e.target.classList.remove('dragging');
+      
+      // Clean up drag image
+      if (dragImage) {
+        document.body.removeChild(dragImage);
+        dragImage = null;
+      }
+      
+      // Remove event listener
+      document.removeEventListener('dragover', updateDragImagePosition);
+      
+      draggedElement = null;
+      draggedIndex = null;
+      
+      // Remove drag-over class from all elements
+      document.querySelectorAll('.thumb').forEach(thumb => {
+        thumb.classList.remove('drag-over');
+      });
+    }
+
+    function updateDragImagePosition(e) {
+      if (!dragImage) return;
+      
+      dragImage.style.left = (e.clientX - 50) + 'px';
+      dragImage.style.top = (e.clientY - 50) + 'px';
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      
+      // Update visual feedback based on overlap
+      updateDragFeedback();
+    }
+
+    function updateDragFeedback() {
+      if (!draggedElement) return;
+      
+      // Remove drag-over from all elements
+      document.querySelectorAll('.thumb').forEach(thumb => {
+        thumb.classList.remove('drag-over');
+      });
+      
+      // Find the best target and highlight it
+      const bestTarget = findBestDropTarget();
+      if (bestTarget) {
+        bestTarget.classList.add('drag-over');
+      }
+    }
+
+    function handleDragEnter(e) {
+      e.preventDefault();
+      if (e.target.classList.contains('thumb') && e.target !== draggedElement) {
+        e.target.classList.add('drag-over');
+      }
+    }
+
+    function handleDragLeave(e) {
+      if (e.target.classList.contains('thumb')) {
+        e.target.classList.remove('drag-over');
+      }
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      e.target.classList.remove('drag-over');
+      
+      if (e.target.classList.contains('thumb') && e.target !== draggedElement) {
+        const dropIndex = parseInt(e.target.dataset.index);
+        reorderImages(draggedIndex, dropIndex);
+      } else {
+        // Check for 51% overlap with any thumbnail
+        const dropTarget = findBestDropTarget();
+        if (dropTarget) {
+          const dropIndex = parseInt(dropTarget.dataset.index);
+          reorderImages(draggedIndex, dropIndex);
+        }
+      }
+    }
+
+    function findBestDropTarget() {
+      if (!dragImage) return null;
+      
+      const dragRect = dragImage.getBoundingClientRect();
+      const dragArea = dragRect.width * dragRect.height;
+      
+      let bestTarget = null;
+      let maxOverlap = 0;
+      
+      document.querySelectorAll('.thumb').forEach(thumb => {
+        if (thumb === draggedElement) return;
+        
+        const thumbRect = thumb.getBoundingClientRect();
+        
+        // Calculate overlap area
+        const overlapLeft = Math.max(dragRect.left, thumbRect.left);
+        const overlapRight = Math.min(dragRect.right, thumbRect.right);
+        const overlapTop = Math.max(dragRect.top, thumbRect.top);
+        const overlapBottom = Math.min(dragRect.bottom, thumbRect.bottom);
+        
+        if (overlapLeft < overlapRight && overlapTop < overlapBottom) {
+          const overlapWidth = overlapRight - overlapLeft;
+          const overlapHeight = overlapBottom - overlapTop;
+          const overlapArea = overlapWidth * overlapHeight;
+          
+          // Calculate overlap percentage relative to dragged element
+          const overlapPercentage = overlapArea / dragArea;
+          
+          if (overlapPercentage >= 0.51 && overlapPercentage > maxOverlap) {
+            maxOverlap = overlapPercentage;
+            bestTarget = thumb;
+          }
+        }
+      });
+      
+      return bestTarget;
+    }
+
+    // Touch events for mobile devices
+    let touchStartY = 0;
+    let touchStartX = 0;
+    let touchElement = null;
+    let touchIndex = null;
+    let touchOffset = { x: 0, y: 0 };
+    let longPressTimer = null;
+    let isLongPress = false;
+
+    function handleTouchStart(e) {
+      touchElement = e.target.closest('.thumb');
+      if (!touchElement) return;
+      
+      touchIndex = parseInt(touchElement.dataset.index);
+      const touch = e.touches[0];
+      touchStartY = touch.clientY;
+      touchStartX = touch.clientX;
+      
+      // Start long press timer
+      isLongPress = false;
+      longPressTimer = setTimeout(() => {
+        isLongPress = true;
+        startDragMode();
+      }, 500); // 500ms long press
+      
+      e.preventDefault();
+    }
+
+    function startDragMode() {
+      if (!touchElement) return;
+      
+      const rect = touchElement.getBoundingClientRect();
+      touchOffset.x = touchStartX - rect.left;
+      touchOffset.y = touchStartY - rect.top;
+      
+      touchElement.classList.add('dragging');
+      touchElement.style.position = 'fixed';
+      touchElement.style.zIndex = '1000';
+      touchElement.style.pointerEvents = 'none';
+      touchElement.style.left = (touchStartX - touchOffset.x) + 'px';
+      touchElement.style.top = (touchStartY - touchOffset.y) + 'px';
+      
+      // Add haptic feedback if available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }
+
+    function handleTouchMove(e) {
+      if (!touchElement) return;
+      
+      // Cancel long press if user moves too much before long press completes
+      if (!isLongPress) {
+        const touch = e.touches[0];
+        const deltaX = Math.abs(touch.clientX - touchStartX);
+        const deltaY = Math.abs(touch.clientY - touchStartY);
+        
+        if (deltaX > 10 || deltaY > 10) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+          touchElement = null;
+          touchIndex = null;
+          return;
+        }
+        e.preventDefault();
+        return;
+      }
+      
+      const touch = e.touches[0];
+      const newX = touch.clientX - touchOffset.x;
+      const newY = touch.clientY - touchOffset.y;
+      
+      touchElement.style.left = newX + 'px';
+      touchElement.style.top = newY + 'px';
+      
+      // Find element under touch point
+      const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      const thumbBelow = elementBelow ? elementBelow.closest('.thumb') : null;
+      
+      // Remove drag-over from all elements
+      document.querySelectorAll('.thumb').forEach(thumb => {
+        thumb.classList.remove('drag-over');
+      });
+      
+      // Add drag-over to element below
+      if (thumbBelow && thumbBelow !== touchElement) {
+        thumbBelow.classList.add('drag-over');
+      }
+      
+      e.preventDefault();
+    }
+
+    function handleTouchEnd(e) {
+      if (!touchElement) return;
+      
+      // Clear the long press timer
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+      
+      // If it wasn't a long press, just reset and return
+      if (!isLongPress) {
+        touchElement = null;
+        touchIndex = null;
+        return;
+      }
+      
+      const touch = e.changedTouches[0];
+      const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      const thumbBelow = elementBelow ? elementBelow.closest('.thumb') : null;
+      
+      if (thumbBelow && thumbBelow !== touchElement) {
+        const dropIndex = parseInt(thumbBelow.dataset.index);
+        reorderImages(touchIndex, dropIndex);
+      }
+      
+      // Reset element styles
+      touchElement.classList.remove('dragging');
+      touchElement.style.position = '';
+      touchElement.style.zIndex = '';
+      touchElement.style.left = '';
+      touchElement.style.top = '';
+      touchElement.style.pointerEvents = '';
+      
+      // Remove drag-over from all elements
+      document.querySelectorAll('.thumb').forEach(thumb => {
+        thumb.classList.remove('drag-over');
+      });
+      
+      touchElement = null;
+      touchIndex = null;
+      isLongPress = false;
+    }
+
+    function reorderImages(fromIndex, toIndex) {
+      if (fromIndex === toIndex) return;
+      
+      // Remove the image from its current position
+      const imageToMove = images.splice(fromIndex, 1)[0];
+      
+      // Adjust target index if we're moving from left to right
+      // (because we removed an element, the indices shift)
+      let adjustedToIndex = toIndex;
+      if (fromIndex < toIndex) {
+        adjustedToIndex = toIndex - 1;
+      }
+      
+      // Insert the image at the target position
+      images.splice(adjustedToIndex, 0, imageToMove);
+      
+      // Re-render the preview to update order numbers
+      renderPreview();
+    }
+
+    document.getElementById('formatSelect').addEventListener('change', renderPreview);
+
+    // Page view counter
+    function updateViewCount() {
+      let viewCount = localStorage.getItem('pageViewCount');
+      if (viewCount === null) {
+        viewCount = 1;
+      } else {
+        viewCount = parseInt(viewCount) + 1;
+      }
+      localStorage.setItem('pageViewCount', viewCount);
+      
+      // Display the view count
+      const viewCounter = document.getElementById('viewCounter');
+      if (viewCounter) {
+        viewCounter.textContent = `Page Views: ${viewCount}`;
+      }
+    }
+
+    // Initialize view counter when page loads
+    updateViewCount();
+  </script>
+</body>
+</html>
