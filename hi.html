@@ -1094,20 +1094,33 @@
 
     document.getElementById('formatSelect').addEventListener('change', renderPreview);
 
-    // Page view counter
-    function updateViewCount() {
-      let viewCount = localStorage.getItem('pageViewCount');
-      if (viewCount === null) {
-        viewCount = 1;
-      } else {
-        viewCount = parseInt(viewCount) + 1;
-      }
-      localStorage.setItem('pageViewCount', viewCount);
-      
-      // Display the view count
-      const viewCounter = document.getElementById('viewCounter');
-      if (viewCounter) {
-        viewCounter.textContent = `Page Views: ${viewCount}`;
+    // Global page view counter using CountAPI
+    async function updateViewCount() {
+      try {
+        // Increment the counter and get the new value
+        const response = await fetch('https://api.countapi.xyz/hit/pdf-converter-views/visits');
+        const data = await response.json();
+        
+        // Display the view count
+        const viewCounter = document.getElementById('viewCounter');
+        if (viewCounter) {
+          viewCounter.textContent = `Total Page Views: ${data.value}`;
+        }
+      } catch (error) {
+        console.log('Counter service unavailable, using local counter');
+        // Fallback to local counter if service is down
+        let viewCount = localStorage.getItem('pageViewCount');
+        if (viewCount === null) {
+          viewCount = 1;
+        } else {
+          viewCount = parseInt(viewCount) + 1;
+        }
+        localStorage.setItem('pageViewCount', viewCount);
+        
+        const viewCounter = document.getElementById('viewCounter');
+        if (viewCounter) {
+          viewCounter.textContent = `Page Views: ${viewCount} (Local)`;
+        }
       }
     }
 
